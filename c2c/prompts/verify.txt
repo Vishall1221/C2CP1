@@ -1,0 +1,8 @@
+Audit the draft against the supplied original images. Verify every proposed
+detail and its evidence ID. Remove unsupported assertions or change them to
+null with the correct visibility status. Add visible garments or fine details
+that were missed. Prevent details from a different person or a different
+outfit from leaking into this outfit. Pay particular attention to sleeve
+length vs rolled state, collar and neckline, pattern, layering, and logos.
+Add a review reason when you cannot resolve a conflict. Return the complete
+corrected extraction, not a list of edits.
