@@ -15,6 +15,9 @@ The export includes a cast ID only if you enable that option.
 
 ## Run it
 
+For step-by-step Mac setup, see [MAC.md](MAC.md). It includes a
+[requirements.txt](requirements.txt) install option for pip.
+
 1. **Put your MP4 in `video/`.** The review page lets you choose an MP4 if the
    folder contains several.
 2. **Open `config.toml` and replace `your-google-cloud-project-id`.** If you
