@@ -1,11 +1,14 @@
 from hashlib import file_digest
 from pathlib import Path
 from shutil import copyfileobj
+import ssl
 from tempfile import NamedTemporaryFile
+from urllib.error import URLError
 from urllib.request import Request, urlopen
 import os
 
 from filelock import FileLock
+import truststore
 
 from .config import ROOT, UserError
 
@@ -55,13 +58,21 @@ def download(path: Path, url: str, algorithm: str, checksum: str) -> None:
         temp_path = Path(temporary.name)
         try:
             request = Request(url, headers={"User-Agent": "C2C-Phase-1/0.1"})
-            with urlopen(request, timeout=90) as response:
+            context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            with urlopen(request, timeout=90, context=context) as response:
                 copyfileobj(response, temporary)
             temporary.close()
             if not matches(temp_path, algorithm, checksum):
                 raise UserError(f"Checksum mismatch for {path.name}. Retry the model download.")
             os.replace(temp_path, path)
         except OSError as exc:
+            cause = exc.reason if isinstance(exc, URLError) else exc
+            if isinstance(cause, ssl.SSLCertVerificationError):
+                raise UserError(
+                    f"Certificate verification failed while downloading {path.name}: {cause}. "
+                    "On a managed network, check with IT that the network's certificate is trusted "
+                    "by your operating system, or retry on another trusted network."
+                ) from exc
             raise UserError(f"Download failed for {path.name}: {exc}. Check the network and retry.") from exc
         finally:
             temporary.close()

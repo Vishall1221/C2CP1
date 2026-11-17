@@ -82,3 +82,9 @@ c2c review
 Video scanning and cast matching run on your Mac. Gemini receives selected
 screenshots through Vertex AI, with no grounding or search tools. Press
 **Control+C** in Terminal to stop the app.
+
+If the first scan reports a certificate verification error, update the repo
+with `git pull` and restart the app. Model downloads use the Mac's trusted
+certificates. If the error continues on a managed network, ask IT whether the
+network's certificate is trusted in macOS Keychain, or retry on another
+trusted network.

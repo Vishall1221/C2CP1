@@ -128,6 +128,7 @@ dependencies = [
     { name = "streamlit" },
     { name = "supervision" },
     { name = "trackers" },
+    { name = "truststore" },
 ]
 
 [package.metadata]
@@ -143,6 +144,7 @@ requires-dist = [
     { name = "streamlit", specifier = ">=1.56,<2" },
     { name = "supervision", specifier = ">=0.31,<0.32" },
     { name = "trackers", specifier = "==2.7.0" },
+    { name = "truststore", specifier = ">=0.10.5,<1" },
 ]
 
 [[package]]
