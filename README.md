@@ -17,6 +17,8 @@ The export includes a cast ID only if you enable that option.
 
 For step-by-step Mac setup, see [MAC.md](MAC.md). It includes a
 [requirements.txt](requirements.txt) install option for pip.
+The three [model weights](models/README.md) are available through Git LFS.
+Run `git lfs pull` after installing Git LFS to fetch them before the first scan.
 
 1. **Put your MP4 in `video/`.** The review page lets you choose an MP4 if the
    folder contains several.
@@ -42,10 +44,10 @@ For step-by-step Mac setup, see [MAC.md](MAC.md). It includes a
    macOS 14 or later for the locked packages. If you have only uv installed,
    it can install Python 3.11.
 
-5. **Click Scan video.** The first scan downloads RF-DETR Small and the two
-   OpenCV face models into `models/`. The three files total about 425 MB.
-   The scan proposes groups of recurring faces and shows several sample
-   photos where available.
+5. **Click Scan video.** The app verifies and uses the model files in
+   `models/`, or fetches missing weights from their original publishers.
+   It proposes groups of recurring faces and shows several sample photos
+   where available.
 6. **Select the leads and click Save primary cast.** Expand **Check individual
    appearances** to add a missed face, move a shot to the right cast member,
    or exclude a wrongly assigned shot. The cast names are optional and the
@@ -126,9 +128,9 @@ quality and cost on several clips.
 Run automated checks with `uv run python -m unittest discover -s tests -v`.
 The checks simulate Vertex AI at the HTTP boundary and never call the API.
 
-The `video/`, `output/`, `models/`, and local `config.toml` contents
-are excluded from Git. Push the source and `config.example.toml` to share
-the project.
+The contents of `video/` and `output/` and the local `config.toml` are
+excluded from Git. Only the three listed model weights and their license
+documentation are tracked in `models/`.
 
 ## Libraries and model references
 

@@ -28,6 +28,22 @@ python -m pip install -r requirements.txt
 Run the `brew install` line only if that tool is missing. Both options install
 the `c2c` command and use the same pinned dependencies.
 
+### Get the models from GitHub
+
+For an existing clone, run these commands from the `C2CP1` folder. Install
+[Git LFS](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage)
+first if you do not already have it.
+
+```bash
+brew install git-lfs
+git lfs install --local
+git pull --ff-only
+git lfs pull
+```
+
+This fetches the three model files (about 425 MB) into `models/` from GitHub.
+Once the files are present, **Scan video** verifies and uses them locally.
+
 ## 2. Add your MP4 and project ID
 
 Copy a short MP4 into the repo's `video/` folder in Finder. Then run:
@@ -72,8 +88,8 @@ c2c review
 ```
 
 1. Open [http://127.0.0.1:8501](http://127.0.0.1:8501) if the browser does not open.
-2. Choose your MP4 and click **Scan video**. The first scan downloads about
-   425 MB of local vision model weights.
+2. Choose your MP4 and click **Scan video**. If the model files are missing,
+   the app can fetch them from their original publishers.
 3. Select the leads under **Primary cast** and click **Save primary cast**.
 4. Open **Outfits** and click **Extract outfits**.
 5. Review the results and click **Save JSON and CSV**. The app shows where
@@ -83,8 +99,7 @@ Video scanning and cast matching run on your Mac. Gemini receives selected
 screenshots through Vertex AI, with no grounding or search tools. Press
 **Control+C** in Terminal to stop the app.
 
-If the first scan reports a certificate verification error, update the repo
-with `git pull` and restart the app. Model downloads use the Mac's trusted
-certificates. If the error continues on a managed network, ask IT whether the
-network's certificate is trusted in macOS Keychain, or retry on another
-trusted network.
+If scanning reports a certificate verification error while fetching a model,
+use the Git LFS steps above to retrieve the files separately from GitHub.
+If HTTPS errors continue on a managed network, check with IT or retry on
+another trusted network.

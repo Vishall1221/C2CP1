@@ -17,4 +17,9 @@ config.*.toml
 video/*
 !video/.gitkeep
 output/
-models/
+models/*
+!models/README.md
+!models/licenses/
+!models/rf-detr-small.pth
+!models/face_detection_yunet_2023mar.onnx
+!models/face_recognition_sface_2021dec.onnx
