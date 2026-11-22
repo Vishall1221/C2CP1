@@ -1,140 +1,148 @@
-# C2C Phase 1
+# Content to Commerce
 
-Give the tool an MP4, confirm which people are in the primary cast, and export
-their main outfits with detailed garment attributes, a few timestamps, and the
-screenshots that support them.
+Give it a video. It finds the main characters (by screen time), groups each character's
+distinct outfits, asks Gemini (Vertex AI) to describe every outfit once, and saves
+`character_id, timestamp, outfit` as JSON and CSV in the `output/` folder.
 
-| Example look | Example timestamps |
-| --- | --- |
-| Solid red polo, long sleeves, folded collar, three visible buttons | `00:00:12.500`, `00:00:24.125` |
-| Black zip-up jacket over the same red polo | `00:01:05.040`, `00:01:18.200` |
+## Processing steps
 
-Start with a short clip where you know who appears and what they wear. A new
-jacket produces a separate look. Footwear and accessories are outside Phase 1.
-The export includes a cast ID only if you enable that option.
+| # | Step | What runs |
+|---|------|-----------|
+| 1 | Frame extraction & person tracking | PyAV decode, shot-boundary detection, frame sampling (`SAMPLE_FPS`), YOLO11 person detection, ByteTrack tracking, YuNet face detection + SFace face embeddings |
+| 2 | Main-character clustering | face-embedding clustering, ranked by screen time, top `MAIN_CHARACTERS` kept |
+| 3 | Outfit segmentation & clustering | clothing segmentation (TFLite), DINOv2 + colour features, outfit grouping across shots |
+| 4 | Gemini requests (Vertex AI) | one structured outfit description per request (`GEMINI_MODEL`) |
+| 5 | Export JSON / CSV | `outfits.json`, `outfits.csv` (+ `result.json` for the web page) |
 
-## Run it
+## Project layout
 
-For step-by-step Mac setup, see [MAC.md](MAC.md). It includes a
-[requirements.txt](requirements.txt) install option for pip.
-The three [model weights](models/README.md) are available through Git LFS.
-Run `git lfs pull` after installing Git LFS to fetch them before the first scan.
+Each processing step is its own module (folder); `main.py` is the only entry point.
 
-1. **Put your MP4 in `video/`.** The review page lets you choose an MP4 if the
-   folder contains several.
-2. **Open `config.toml` and replace `your-google-cloud-project-id`.** If you
-   cloned the project, copy `config.example.toml` to `config.toml` first.
-   `model` defaults to `gemini-3.8-flash` and `location` to `global`. Set
-   them to a model and location your Google Cloud project can use.
-3. **Sign in for Vertex AI.** With the Google Cloud CLI installed, run
-   `gcloud auth application-default login`. The project ID identifies the
-   project; Application Default Credentials provide access. Use a project
-   with the Vertex AI API and billing enabled and with permission to invoke
-   the model. Local video scanning can run before you set up credentials.
-4. **Open a terminal in this folder** with Python 3.11 and [uv](https://docs.astral.sh/uv/getting-started/installation/)
-   available. Run:
-
-   ```sh
-   uv sync --locked --python 3.11
-   uv run c2c review
-   ```
-
-   Open [the local review page](http://127.0.0.1:8501) if your browser
-   does not open automatically. From a clone on an Apple Silicon Mac, use
-   macOS 14 or later for the locked packages. If you have only uv installed,
-   it can install Python 3.11.
-
-5. **Click Scan video.** The app verifies and uses the model files in
-   `models/`, or fetches missing weights from their original publishers.
-   It proposes groups of recurring faces and shows several sample photos
-   where available.
-6. **Select the leads and click Save primary cast.** Expand **Check individual
-   appearances** to add a missed face, move a shot to the right cast member,
-   or exclude a wrongly assigned shot. The cast names are optional and the
-   page uses anonymous person numbers.
-7. **Open Outfits and click Extract outfits.** Review the results and resolve
-   flagged items. You can correct garment details, exclude a look, or group
-   its separate appearances. Click **Save JSON and CSV** for the file paths.
-
-Gemini calls use your Google Cloud project via the Gen AI SDK. The app sends
-only the selected screenshots and a clothing prompt, using structured JSON
-output with no grounding or search tools. The video scan, cast thumbnails,
-and face matching run on the machine that runs C2C.
-
-## What the files contain
-
-- `outfits.json` contains the outfits, per-garment attribute values and
-  visibility status, evidence IDs, and up to three distinct timestamps per
-  outfit. Every timestamp comes from an actual decoded MP4 frame. An attribute
-  such as fabric that cannot be seen stays unknown.
-- `outfits.csv` is a flat sheet with one row per garment and the outfit's
-  timestamps. The JSON carries the full evidence and review information.
-- Each video job lives in `output/<video-name-and-id>/`. Export files are in
-  `exports/<revision>/`. Screenshot paths in both files are relative to the
-  video job folder, which contains `evidence/`. Keep that folder if you
-  want to retain the images alongside the exports.
-- `work.sqlite3` stores the scan, primary cast selection, Gemini responses,
-  and corrections. Running the same job reuses the scan and successful model
-  requests. Failed individual requests are visible under **Processing notes**
-  and can be retried there. Changing the cast or extraction settings creates
-  a new set of results and retains the earlier one.
-
-## How it decides what to inspect
-
-C2C detects camera cuts, then looks for people throughout each shot. The
-default samples about six frames a second and includes endpoints and the
-middle of a shot. ByteTrack follows detections within a shot. YuNet and SFace
-group clear face matches across shots to build the cast shortlist. Confirm the
-shortlist because a recurring face can be a supporting character. Use the
-individual appearance review when the view is from the back or a face is
-obscured.
-
-The extraction sends several complementary views of a selected person at a
-time, including upper or lower detail crops when available. It checks the
-first Gemini result against the same images. For repeat appearances, local
-color and texture scoring proposes candidates and Gemini checks distinguishing
-garment details before a merge. Ambiguous repeats remain separate and can be
-combined in review. A short glimpse can still be missed, so compare the
-output against the first test clip.
-
-The Mac uses Apple GPU acceleration where supported and can fall back to
-CPU. The local package includes FFmpeg decoding through PyAV, so no separate
-`ffmpeg` command is required. Model and API performance depend on your machine,
-footage, and Google project.
-
-## Terminal commands and pilot checks
-
-```sh
-uv run c2c setup-models
-uv run c2c prepare "video/sample.mp4"
-uv run c2c review
-uv run c2c extract "video/sample.mp4"
-uv run c2c export "video/sample.mp4"
+```
+Content to commerce/
+├── main.py                  command line: setup | run | serve | prepare | select | wardrobe | extract
+├── config.env               all settings (Vertex AI project, FPS, main characters, ...)
+├── requirements.txt
+├── frame_extraction/        step 1  video.py        decode, shot-boundary detection, frame sampling
+├── person_tracking/         step 1  scanner.py      streaming scan per sampled frame
+│                                    detectors.py    YOLO11 (and optional RF-DETR) person detection
+│                                    tracker.py      ByteTrack tracking
+│                                    faces.py        YuNet face detection + SFace embeddings
+│                                    image_utils.py  small image helpers
+├── character_clustering/    step 2  cast.py         clustering tracks by face, screen-time ranking
+│                                    clustering.py   constrained clustering algorithms
+├── outfit_analysis/         step 3  wardrobe.py     per-character outfit pipeline
+│                                    clothing.py     clothing segmentation + DINOv2 features
+│                                    grouping.py     outfit grouping across shots
+├── gemini_requests/         step 4  describe.py     outfit -> request batching, run + cache
+│                                    client.py       Vertex AI client, prompt, answer validation
+│                                    request_queue.py  rate limits, retries, hedged requests
+├── export/                  step 5  writer.py       outfits.json / .csv, result.json, issues.json
+├── pipeline/                        runner.py       runs the 5 steps, caches finished steps
+│                                    jobs.py         starts runs in the background for the web page
+├── frontend/                        server.py       FastAPI web server (local only)
+│                                    static/         index.html, styles.css, app.js
+├── core/                            config.py, records.py (data models), storage.py, timing.py,
+│                                    threads.py (CPU thread budget), weights.py (model download)
+├── video/                   input videos (the web page lists these)
+└── output/                  results, one folder per video
 ```
 
-Confirm cast in the review page before using the `extract` command.
-The MP4 argument can be omitted if `video/` contains one MP4. Add
-`--include-cast` to the export command to include anonymous cast IDs.
+## Setup on a Mac (Apple silicon, e.g. M4)
 
-To compare another Gemini model, copy the config to `config.comparison.toml`,
-change the model, and run `uv run c2c --config config.comparison.toml review`.
-For an input comparison, set `views_per_batch = 1` and `detail_crops = false`
-for one crop, then use the defaults for several views. Inspect the same outfits for correct details,
-missed visible details, unsupported claims, and effective repeat grouping.
-For a short clip with a missed glimpse, set `sample_fps = 0` in a separate
-config to scan all source frames. Review a full movie only after checking
-quality and cost on several clips.
+1. Python 3.12 and the Google Cloud CLI (once):
+   ```sh
+   brew install python@3.12
+   brew install --cask google-cloud-sdk
+   ```
+2. In this folder, create an environment and install the packages:
+   ```sh
+   cd "Content to commerce"
+   python3.12 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install -r requirements.txt
+   ```
+3. Log in to Google Cloud for Vertex AI (no API key is used):
+   ```sh
+   gcloud auth application-default login
+   gcloud services enable aiplatform.googleapis.com --project YOUR_PROJECT_ID
+   ```
+   Your account needs the **Vertex AI User** role on the project. A service-account key
+   file also works: set `GOOGLE_APPLICATION_CREDENTIALS` in `config.env`.
+4. Open `config.env` and set `GCP_PROJECT_ID` (location `global` and model
+   `gemini-3.1-flash-lite` are already set).
+5. Download the models (about 130 MB, once):
+   ```sh
+   python main.py setup
+   ```
 
-Run automated checks with `uv run python -m unittest discover -s tests -v`.
-The checks simulate Vertex AI at the HTTP boundary and never call the API.
+The Apple GPU (MPS) is used automatically (`DEVICE=auto`). Check it with:
+`python -c "import torch; print(torch.backends.mps.is_available())"` → `True`.
 
-The contents of `video/` and `output/` and the local `config.toml` are
-excluded from Git. Only the three listed model weights and their license
-documentation are tracked in `models/`.
+## Run
 
-## Libraries and model references
+Every new terminal: `cd "Content to commerce"` and `source .venv/bin/activate` first.
 
-- [PySceneDetect](https://www.scenedetect.com/docs/latest/api/detectors.html) and [PyAV](https://pyav.basswood-io.com/docs/stable/api/video.html)
-- [RF-DETR Small](https://rfdetr.roboflow.com/latest/learn/pretrained/) and [ByteTrack](https://trackers.roboflow.com/latest/trackers/bytetrack/)
-- [OpenCV's YuNet and SFace](https://docs.opencv.org/4.x/d0/dd4/tutorial_dnn_face.html)
-- [Gemini 3.8 Flash on Google Cloud](https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-3-8-flash) and [Application Default Credentials](https://docs.cloud.google.com/docs/authentication/application-default-credentials)
+**Web page** (pick or upload a video, press Run, watch the 5 steps, see the outfits):
+```sh
+python main.py serve
+```
+then open **http://127.0.0.1:8765** (works while that terminal stays open).
+
+**Command line:**
+```sh
+python main.py run --video video/your_video.mp4
+```
+Videos can be anywhere; the web page lists the ones in `video/` and saves uploads there.
+
+## Output
+
+Each video gets its own folder: `output/<video name>-<id>/out/`
+
+| File | Content |
+|------|---------|
+| `outfits.csv` | `character_id, timestamp, outfit` (opens in Excel) |
+| `outfits.json` | the same rows as JSON |
+| `result.json` | characters, outfit cards, garments (used by the web page) |
+| `issues.json` | outfits Gemini could not describe |
+| `timings.json` | time per step |
+
+Running the same video again reuses finished steps and stored Gemini answers (an
+interrupted run resumes). To process a video from scratch, delete its folder in `output/`.
+
+## Settings (`config.env`)
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `GCP_PROJECT_ID` | – | Google Cloud project with Vertex AI enabled |
+| `GCP_LOCATION` | `global` | Vertex AI location |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` | Gemini model on Vertex AI |
+| `SAMPLE_FPS` | `1` | frames analysed per second of video |
+| `MAIN_CHARACTERS` | `3` | number of main characters to keep (1-10) |
+| `FACE_TAU` | `0.45` | face clustering threshold |
+| `SHOT_CUT_THRESHOLD` / `SHOT_MIN_FRAMES` | `3.0` / `15` | shot-boundary detection |
+| `DEVICE` | `auto` | `auto`, `mps`, `cuda` or `cpu` |
+| `PERSON_DETECTOR` | `yolo11s` | `yolo11n` (fastest), `yolo11s`, `yolo11m` (most accurate) |
+| `GEMINI_RPM` / `GEMINI_CONCURRENCY` | `60` / `8` | requests per minute / at the same time |
+| `GEMINI_RPD` | `5000` | safety cap on requests per day |
+
+After changing settings, run the video again: a new `SAMPLE_FPS` (or shot / face setting)
+redoes all 5 steps; a new `MAIN_CHARACTERS` reuses step 1 and redoes steps 2-5. If you chose
+the characters by hand in the web page, that choice is kept until you choose again. Results
+replace the previous ones in the same `output/` folder; Gemini answers are cached per image.
+
+## Speed
+
+A 10-minute 1080p video took about 2 minutes on a Windows laptop with an RTX 3050 Ti
+(frames + tracking ~52 s, outfits ~14 s, Gemini ~45 s). The Gemini step depends on the
+service and network.
+
+## Troubleshooting
+
+| Message | Fix |
+|---------|-----|
+| `Set GCP_PROJECT_ID in config.env` | put your project id in `config.env` |
+| `Google Cloud credentials missing or expired` | `gcloud auth application-default login` |
+| `403 PERMISSION_DENIED` | enable the Vertex AI API on the project; give your account the Vertex AI User role |
+| many `retry (rate_minute)` lines | lower `GEMINI_RPM` in `config.env` |
+| `404 ... model not found` | check `GEMINI_MODEL` and `GCP_LOCATION` (`global`) |

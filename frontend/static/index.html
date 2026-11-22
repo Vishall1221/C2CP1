@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Content to Commerce</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header><div><h1>Content to Commerce</h1><span>video → main characters → outfits → JSON / CSV</span>
+  <span class="spacer"></span><span id="cfg" class="muted small"></span></div></header>
+<main>
+
+<section>
+  <h2>Video</h2>
+  <div class="row">
+    <select id="video"></select>
+    <button id="run" class="primary">Run</button>
+    <span class="spacer"></span>
+    <label class="filebtn">Upload video…<input type="file" id="file" accept=".mp4,.mkv,.mov,.avi,.webm"></label>
+  </div>
+  <div id="up" class="muted small"></div>
+  <div id="err"></div>
+</section>
+
+<section>
+  <h2>Progress <span id="state" class="pill">–</span><span class="spacer"></span><span id="total" class="muted small"></span></h2>
+  <div class="stages" id="stages"></div>
+  <details><summary>Run details</summary><pre id="details">No run yet.</pre></details>
+</section>
+
+<section>
+  <h2>Main characters <span class="muted small" style="text-transform:none;letter-spacing:0;font-weight:400">ranked by screen time</span></h2>
+  <div id="cast" class="cast"><div class="empty">Appears after the scan.</div></div>
+  <details id="fix"><summary>Wrong people? Choose the main characters yourself</summary>
+    <div id="cands" class="cast" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px"><button id="recast">Re-run with selected people</button>
+      <span class="muted small" id="pickhint">Only the outfit and Gemini steps run again.</span></div>
+  </details>
+</section>
+
+<section>
+  <h2>Outfits <span id="count" class="muted small" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
+    <span class="spacer"></span><span id="dl" class="row"></span></h2>
+  <div id="saved" class="muted small"></div>
+  <div id="outfits"><div class="empty">Appears when the run finishes.</div></div>
+</section>
+
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>
